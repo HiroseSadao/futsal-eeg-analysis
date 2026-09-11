@@ -1,4 +1,4 @@
-"""Compare alpha and beta squared FFT magnitudes between kick outcomes."""
+"""Compare alpha and beta band power in microvolts squared between kick outcomes."""
 
 from __future__ import annotations
 
@@ -27,11 +27,16 @@ BANDS_HZ = {"alpha": (8.0, 15.0), "beta": (15.0, 30.0)}
 
 
 def band_value(waveform: np.ndarray, limits: tuple[float, float]) -> float:
-    """Mean unnormalized squared FFT magnitude within a frequency band."""
+    """Band-summed one-sided power in microvolts squared; input is in volts."""
     frequencies = rfftfreq(waveform.size, d=1.0 / SAMPLE_RATE_HZ)
-    squared_magnitude = np.abs(rfft(waveform)) ** 2
+    power = np.abs(rfft(waveform)) ** 2 / waveform.size**2
+    # Fold negative frequencies into the positive side, excluding DC and Nyquist.
+    if waveform.size % 2 == 0:
+        power[1:-1] *= 2.0
+    else:
+        power[1:] *= 2.0
     mask = (frequencies >= limits[0]) & (frequencies <= limits[1])
-    return float(np.mean(squared_magnitude[mask]))
+    return float(np.sum(power[mask]) * 1e12)
 
 
 def condition_average(
